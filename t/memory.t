@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 use Test::More 0.88;
-use Module::Reader;
+use Module::Reader qw(:all);
 
 my $mod_content = do {
     open my $fh, '<', 't/lib/TestLib.pm';

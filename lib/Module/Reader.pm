@@ -7,7 +7,8 @@ our $VERSION = '0.00100';
 $VERSION = eval $VERSION;
 
 use base 'Exporter';
-our @EXPORT = qw(module_content module_handle);
+our @EXPORT_OK = qw(module_content module_handle);
+our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
 use File::Spec;
 use Scalar::Util qw(blessed reftype openhandle);
@@ -101,7 +102,7 @@ Module::Reader - Read the source of a module like perl does
 
 =head1 SYNOPSIS
 
-    use Module::Reader;
+    use Module::Reader qw(:all);
     my $io = module_handle('My::Module');
     my $content = module_content('My::Module');
 
