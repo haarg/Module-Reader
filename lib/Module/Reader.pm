@@ -3,7 +3,7 @@ BEGIN { require 5.006 }
 use strict;
 use warnings;
 
-our $VERSION = '0.001000';
+our $VERSION = '0.001001';
 $VERSION = eval $VERSION;
 
 use base 'Exporter';
