@@ -8,6 +8,7 @@ WriteMakefile(
 
     PREREQ_PM => {
         ($] < 5.008 ? ('IO::String' => 0) : ()),
+        'Test::More' => 0.88,
     },
 );
 

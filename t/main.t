@@ -1,11 +1,7 @@
 use strict;
+use warnings;
 
-BEGIN {
-    $|  = 1;
-    $^W = 1;
-}
-
-use Test::More tests => 2;
+use Test::More 0.88;
 use Module::Reader;
 
 my $mod_content = do {
@@ -30,3 +26,4 @@ my $mod_content = do {
     is module_content('TestLib'), $mod_content, 'correctly load module from sub @INC hook';
 }
 
+done_testing;

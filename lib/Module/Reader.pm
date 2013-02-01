@@ -1,43 +1,49 @@
 package Module::Reader;
-BEGIN {
-    $VERSION = '0.00100';
-    $VERSION = eval $VERSION;
-    if ($] < 5.008) {
-        require IO::String;
-        eval q{
-            sub _open_string {
-                IO::String->new($_[0]);
-            }
-        };
-    }
-    else {
-        eval q{
-            sub _open_string {
-                open my $fh, '<', \$_[0];
-                return $fh;
-            }
-        };
-    }
-}
-
-use Exporter ();
-BEGIN {
-    @ISA = 'Exporter';
-    @EXPORT = qw(module_content module_handle);
-}
-
+BEGIN { require 5.006 }
 use strict;
+use warnings;
+
+our $VERSION = '0.00100';
+$VERSION = eval $VERSION;
+
+use base 'Exporter';
+our @EXPORT = qw(module_content module_handle);
 
 use File::Spec;
 use Scalar::Util qw(blessed reftype openhandle);
+use Carp;
+use constant _OPEN_STRING => $] >= 5.008;
+BEGIN {
+    require IO::String
+        if !_OPEN_STRING;
+}
 
 sub module_content {
-    my $handle = module_handle(@_);
-    local $/;
-    return scalar <$handle>;
+    my $module = _get_module(@_);
+    if (ref $module) {
+        local $/;
+        return scalar <$module>;
+    }
+    else {
+        return $module;
+    }
 }
 
 sub module_handle {
+    my $module = _get_module(@_);
+    if (ref $module) {
+        return $module;
+    }
+    elsif (_OPEN_STRING) {
+        open my $fh, '<', \$module;
+        return $fh;
+    }
+    else {
+        return IO::String->new($module);
+    }
+}
+
+sub _get_module {
     my ($package, @inc) = @_;
     (my $module = "$package.pm") =~ s{::}{/}g;
     if (!@inc) {
@@ -47,44 +53,42 @@ sub module_handle {
         if (!ref $inc) {
             my $full_module = File::Spec->catfile($inc, $module);
             next unless -f $full_module;
-            open(my $fh, '<', $full_module)
-                || die "Couldn't open ${full_module} for ${module}: $!";
+            open my $fh, '<', $full_module
+                or die "Couldn't open ${full_module} for ${module}: $!";
             return $fh;
         }
-        else {
-            my @cb = ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $module)
-                   : blessed $inc         ? $inc->INC($module)
-                                          : $inc->($inc, $module);
 
-            next
-                unless ref $cb[0];
-            my $fh;
-            if (reftype $cb[0] eq 'GLOB' && openhandle $cb[0]) {
-                $fh = shift @cb;
-            }
+        my @cb = ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $module)
+               : blessed $inc         ? $inc->INC($module)
+                                      : $inc->($inc, $module);
 
-            if (ref $cb[0] eq 'CODE') {
-                my $cb = shift @cb;
-                # require docs are wrong, perl sends 0 as the first param
-                my @params = (0, @cb ? $cb[0] : ());
+        next
+            unless ref $cb[0];
+        my $fh;
+        if (reftype $cb[0] eq 'GLOB' && openhandle $cb[0]) {
+            $fh = shift @cb;
+        }
 
-                my $module = '';
-                while (1) {
-                    local $_ = $fh ? <$fh> : '';
-                    $_ = ''
-                        if !defined;
-                    last if !$cb->(@params);
-                    $module .= $_;
-                }
-                return _open_string($module);
+        if (ref $cb[0] eq 'CODE') {
+            my $cb = shift @cb;
+            # require docs are wrong, perl sends 0 as the first param
+            my @params = (0, @cb ? $cb[0] : ());
+
+            my $module = '';
+            while (1) {
+                local $_ = $fh ? <$fh> : '';
+                $_ = ''
+                    if !defined;
+                last if !$cb->(@params);
+                $module .= $_;
             }
-            elsif ($fh) {
-                return $fh;
-            }
-            next;
+            return $module;
+        }
+        elsif ($fh) {
+            return $fh;
         }
     }
-    die "Can't find module $module";
+    croak "Can't find module $module";
 }
 
 1;
