@@ -47,8 +47,21 @@ sub module_handle {
 sub _get_module {
     my ($package, @inc) = @_;
     (my $module = "$package.pm") =~ s{::}{/}g;
+    my $opts = ref $_[-1] && ref $_[-1] eq 'HASH' && pop @inc || {};
     if (!@inc) {
         @inc = @INC;
+    }
+    if (my $found = $opts->{found}) {
+        if (my $full_module = $found->{$module}) {
+            if (ref $full_module) {
+                @inc = $full_module;
+            }
+            elsif (-f $full_module) {
+                open my $fh, '<', $full_module
+                    or die "Couldn't open ${full_module} for ${module}: $!";
+                return $fh;
+            }
+        }
     }
     for my $inc (@inc) {
         if (!ref $inc) {
@@ -105,22 +118,40 @@ Module::Reader - Read the source of a module like perl does
     use Module::Reader qw(:all);
     my $io = module_handle('My::Module');
     my $content = module_content('My::Module');
+    
+    my $io = module_handle('My::Module', @search_dirs);
+    
+    my $io = module_handle('My::Module', @search_dirs, { found => \%INC });
 
 =head1 DESCRIPTION
 
 Reads the content of perl modules the same way perl does.  This
-includes reading modules available only by C<@INC> hooks, or filtered
+includes reading modules available only by L<@INC hooks|perlfunc/require>, or filtered
 through them.
 
 =head1 EXPORTS
 
-=head2 module_handle( $module_name )
+=head2 module_handle( $module_name, @search_dirs, \%options )
 
-Returns an IO handle to the given module.
+Returns an IO handle to the given module.  Searches the directories
+specified, or L<@INC|perlvar/@INC> if none are.
 
-=head2 module_content( $module_content )
+=head3 Options
 
-Returns the content of the given module.
+=over 4
+
+=item found
+
+A hashref like L<%INC|perlvar/%INC> with module file names (in the
+style 'F<My/Module.pm>') as keys and full file paths as values.
+Modules listed in this will be used in preference to searching
+through directories.
+
+=back
+
+=head2 module_content( $module_name, @search_dirs, \%options )
+
+Returns the content of the given module.  Accepts the same options as C<module_handle>.
 
 =head1 AUTHOR
 
