@@ -3,7 +3,7 @@ use strict;
 use ExtUtils::MakeMaker 6.30;
 
 my %WriteMakefileArgs = (
-    NAME    => 'Module-Reader',
+    NAME    => 'Module::Reader',
     AUTHOR  => 'Graham Knop <haarg@haarg.org>',
     LICENSE => 'perl',
     ABSTRACT_FROM => 'lib/Module/Reader.pm',
