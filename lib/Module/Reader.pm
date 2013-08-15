@@ -142,7 +142,7 @@ specified, or L<@INC|perlvar/@INC> if none are.
 
 =item found
 
-A hashref like L<%INC|perlvar/%INC> with module file names (in the
+A reference to a hash like L<%INC|perlvar/%INC> with module file names (in the
 style 'F<My/Module.pm>') as keys and full file paths as values.
 Modules listed in this will be used in preference to searching
 through directories.
