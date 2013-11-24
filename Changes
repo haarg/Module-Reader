@@ -1,3 +1,4 @@
+0.002000    Nov 23, 2013
  - fix module NAME in Makefile.PL
  - minor doc corrections
  - fix in-memory file test on perl 5.6
