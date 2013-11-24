@@ -1,49 +1,84 @@
-{ require 5.006 }
 use strict;
-use ExtUtils::MakeMaker 6.30;
+use warnings FATAL => 'all';
+use 5.006;
+use ExtUtils::MakeMaker;
 
-my %WriteMakefileArgs = (
-    NAME    => 'Module::Reader',
-    AUTHOR  => 'Graham Knop <haarg@haarg.org>',
-    LICENSE => 'perl',
-    ABSTRACT_FROM => 'lib/Module/Reader.pm',
-    VERSION_FROM => 'lib/Module/Reader.pm',
-
-    PREREQ_PM => {
-        ($] < 5.008 ? ('IO::String' => 0) : ()),
-        'Scalar::Util'  => 0,
+(do 'maint/Makefile.PL.include' or die $@) unless -f 'META.yml';
+my %META = (
+  name => 'Module::Reader',
+  license => 'perl_5',
+  dynamic_config => 1,
+  prereqs => {
+    configure => { requires => {
+      'ExtUtils::MakeMaker'   => 0,
+    } },
+    build => { requires => {
+    } },
+    test => { requires => {
+      'Test::More'  => 0,
+    } },
+    runtime => { requires => {
+      'perl' => '5.6.0',
+      'Scalar::Util'  => 0,
+      ($] < 5.008 ? ('IO::String' => 0) : ()),
+    } },
+    develop => { requires => {
+    } },
+  },
+  resources => {
+    repository => {
+      url => 'git://github.com/haarg/Module-Reader',
+      web => 'https://github.com/haarg/Module-Reader',
+      type => 'git',
     },
-    BUILD_REQUIRES => {
-        'Test::More' => 0.88,
+    bugtracker => {
+      web => 'https://rt.cpan.org/Public/Dist/Display.html?Name=Module-Reader',
+      mailto => 'bug-Module-Reader@rt.cpan.org',
     },
-    CONFIGURE_REQUIRES => {
-        'ExtUtils::MakeMaker' => 6.30,
-    },
-    META_MERGE => {
-        resources => {
-            repository => 'git://github.com/haarg/Module-Reader.git',
-            homepage => 'http://github.com/haarg/Module-Reader',
-        },
-        requires => {
-            perl => 5.006,
-        },
-    }
+    license => [ 'http://dev.perl.org/licenses/' ],
+  },
 );
 
-unless ( eval { ExtUtils::MakeMaker->VERSION(6.56) } ) {
-    my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};
-    my $pp = $WriteMakefileArgs{PREREQ_PM};
-    for my $mod ( keys %$br ) {
-        if ( exists $pp->{$mod} ) {
-            $pp->{$mod} = $br->{$mod} if $br->{$mod} > $pp->{$mod};
-        }
-        else {
-            $pp->{$mod} = $br->{$mod};
-        }
-    }
+my %MM_ARGS = ();
+
+
+# have to do this since old EUMM dev releases miss the eval $VERSION line
+my $mmver = eval $ExtUtils::MakeMaker::VERSION;
+my $mymeta_works      = $mmver >= 6.57_07;
+my $mymeta            = $mmver >= 6.57_02;
+my $has_test_requires = $mmver >= 6.63_03;
+
+my %configure_deps = %{$META{prereqs}{configure}{requires}};
+my %build_deps     = %{$META{prereqs}{build}{requires}};
+my %test_deps      = %{$META{prereqs}{test}{requires}};
+my %run_deps       = %{$META{prereqs}{runtime}{requires}};
+
+my $min_perl_version = delete $run_deps{perl};
+
+if (not $has_test_requires) {
+  %build_deps = (%build_deps, %test_deps);
+  %test_deps = ();
+}
+if (not $mymeta_works) {
+  %run_deps = (%run_deps, %build_deps);
+  %build_deps = ();
 }
 
-delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
-    unless eval { ExtUtils::MakeMaker->VERSION(6.52) };
+(my $module = "lib/$META{name}.pm") =~ s{::}{/}g;
 
-WriteMakefile(%WriteMakefileArgs);
+WriteMakefile(
+  NAME => $META{name},
+  VERSION_FROM => $module,
+  LICENSE => $META{license},
+
+  $min_perl_version     ? ( MIN_PERL_VERSION    => $min_perl_version ) : (),
+  keys %configure_deps  ? ( CONFIGURE_REQUIRES  => \%configure_deps ) : (),
+  keys %build_deps      ? ( BUILD_REQUIRES      => \%build_deps ) : (),
+  keys %test_deps       ? ( TEST_REQUIRES       => \%test_deps ) : (),
+  keys %run_deps        ? ( PREREQ_PM           => \%run_deps ) : (),
+
+  ($mymeta && !$mymeta_works ? (NO_MYMETA => 1) : ()),
+  -f 'META.yml' ? () : (META_ADD => { 'meta-spec' => { version => 2 }, %META }),
+
+  %MM_ARGS,
+);
