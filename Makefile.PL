@@ -5,7 +5,7 @@ use ExtUtils::MakeMaker;
 
 (do 'maint/Makefile.PL.include' or die $@) unless -f 'META.yml';
 my %META = (
-  name => 'Module::Reader',
+  name => 'Module-Reader',
   license => 'perl_5',
   dynamic_config => 1,
   prereqs => {
