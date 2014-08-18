@@ -1,9 +1,7 @@
 use strict;
 use warnings FATAL => 'all';
 use 5.006;
-use ExtUtils::MakeMaker;
 
-(do 'maint/Makefile.PL.include' or die $@) unless -f 'META.yml';
 my %META = (
   name => 'Module-Reader',
   license => 'perl_5',
@@ -44,7 +42,7 @@ my %MM_ARGS = (
   },
 );
 
-##############################################################################
+## BOILERPLATE ###############################################################
 require ExtUtils::MakeMaker;
 (do 'maint/Makefile.PL.include' or die $@) unless -f 'META.yml';
 
@@ -55,8 +53,10 @@ my $mymeta_broken = $mymeta && $eumm_version < 6.57_07;
 
 ($MM_ARGS{NAME} = $META{name}) =~ s/-/::/g;
 ($MM_ARGS{VERSION_FROM} = "lib/$MM_ARGS{NAME}.pm") =~ s{::}{/}g;
-$MM_ARGS{LICENSE} = $META{license}
-  if $eumm_version >= 6.30;
+$META{license} = [ $META{license} ]
+  if $META{license} && !ref $META{license};
+$MM_ARGS{LICENSE} = $META{license}[0]
+  if $META{license} && $eumm_version >= 6.30;
 $MM_ARGS{NO_MYMETA} = 1
   if $mymeta_broken;
 $MM_ARGS{META_ADD} = { 'meta-spec' => { version => 2 }, %META }
@@ -83,3 +83,4 @@ delete $MM_ARGS{CONFIGURE_REQUIRES}
   if $eumm_version < 6.51_03;
 
 ExtUtils::MakeMaker::WriteMakefile(%MM_ARGS);
+## END BOILERPLATE ###########################################################
