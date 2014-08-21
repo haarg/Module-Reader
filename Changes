@@ -1,5 +1,7 @@
 Revision history for Module-Reader
 
+  - fix dist name in meta files
+
 0.002002 - 2014-08-16
   - include README in dist
   - include additional metadata
