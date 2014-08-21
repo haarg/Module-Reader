@@ -4,22 +4,16 @@ use 5.006;
 
 my %META = (
   name => 'Module-Reader',
-  license => 'perl_5',
-  dynamic_config => 1,
   prereqs => {
     configure => { requires => {
       'ExtUtils::MakeMaker'   => 0,
     } },
-    build => { requires => {
-    } },
     test => { requires => {
-      'Test::More'  => 0,
+      'Test::More'  => 0.88,
     } },
     runtime => { requires => {
       'perl' => '5.006',
       'Scalar::Util'  => 0,
-    } },
-    develop => { requires => {
     } },
   },
   resources => {
