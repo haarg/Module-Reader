@@ -19,62 +19,75 @@ BEGIN {
     if !_OPEN_STRING;
 }
 
+sub _mod_to_file {
+  my $module = shift;
+  (my $file = "$module.pm") =~ s{::}{/}g;
+  $file;
+}
+
 sub module_content {
-  my $module = _get_module(@_);
-  if (ref $module) {
+  inc_content(_mod_to_file($_[0]), @_[1..$#_]);
+}
+
+sub inc_content {
+  my $file = _get_file(@_);
+  if (ref $file) {
     local $/;
-    return scalar <$module>;
+    return scalar <$file>;
   }
   else {
-    return $module;
+    return $file;
   }
 }
 
 sub module_handle {
-  my $module = _get_module(@_);
-  if (ref $module) {
-    return $module;
+  inc_handle(_mod_to_file($_[0]), @_[1..$#_]);
+}
+
+sub inc_handle {
+  my $file = _get_file(@_);
+  if (ref $file) {
+    return $file;
   }
   elsif (_OPEN_STRING) {
-    open my $fh, '<', \$module;
+    open my $fh, '<', \$file;
     return $fh;
   }
   else {
-    return IO::String->new($module);
+    return IO::String->new($file);
   }
 }
 
-sub _get_module {
-  my ($package, @inc) = @_;
-  (my $module = "$package.pm") =~ s{::}{/}g;
+sub _get_file {
+  my ($file, @inc) = @_;
   my $opts = ref $_[-1] && ref $_[-1] eq 'HASH' && pop @inc || {};
   if (!@inc) {
     @inc = @INC;
   }
   if (my $found = $opts->{found}) {
-    if (my $full_module = $found->{$module}) {
-      if (ref $full_module) {
-        @inc = $full_module;
+    if (my $full = $found->{$file}) {
+      if (ref $full) {
+        @inc = $full;
       }
-      elsif (-f $full_module) {
-        open my $fh, '<', $full_module
-          or die "Couldn't open ${full_module} for ${module}: $!";
+      elsif (-f $full) {
+        open my $fh, '<', $full
+          or die "Couldn't open ${full} for ${file}: $!";
         return $fh;
       }
     }
   }
   for my $inc (@inc) {
     if (!ref $inc) {
-      my $full_module = File::Spec->catfile($inc, $module);
-      next unless -f $full_module;
-      open my $fh, '<', $full_module
-        or die "Couldn't open ${full_module} for ${module}: $!";
+      my $full = File::Spec->catfile($inc, $file);
+      next unless -f $full;
+      open my $fh, '<', $full
+        or die "Couldn't open ${full} for ${file}: $!";
       return $fh;
     }
 
-    my @cb = ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $module)
-           : blessed $inc         ? $inc->INC($module)
-                                  : $inc->($inc, $module);
+    my @cb = ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $file)
+           : blessed $inc         ? $inc->INC($file)
+                                  : $inc->($inc, $file);
 
     next
       unless ref $cb[0];
@@ -96,13 +109,13 @@ sub _get_module {
         last if !$cb->(@params);
         $module .= $_;
       }
-      return $module;
+      return $file;
     }
     elsif ($fh) {
       return $fh;
     }
   }
-  croak "Can't find module $module";
+  croak "Can't find file $file";
 }
 
 1;
