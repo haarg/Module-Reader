@@ -40,14 +40,8 @@ sub module_content {
 }
 
 sub inc_content {
-  my $file = _get_file($_[0], _options(@_[1..$#_]));
-  if (ref $file) {
-    local $/;
-    return scalar <$file>;
-  }
-  else {
-    return $file;
-  }
+  my ($fh, $cb, $file) = _get_file($_[0], _options(@_[1..$#_]));
+  return _read($fh, $cb);
 }
 
 sub module_handle {
@@ -55,16 +49,16 @@ sub module_handle {
 }
 
 sub inc_handle {
-  my $file = _get_file($_[0], _options(@_[1..$#_]));
-  if (ref $file) {
-    return $file;
-  }
-  elsif (_OPEN_STRING) {
-    open my $fh, '<', \$file;
+  my ($fh, $cb, $file) = _get_file($_[0], _options(@_[1..$#_]));
+  return $fh
+    if $fh && !$cb;
+  my $content = _read($fh, $cb);
+  if (_OPEN_STRING) {
+    open my $fh, '<', \$content;
     return $fh;
   }
   else {
-    return IO::String->new($file);
+    return IO::String->new($content);
   }
 }
 
@@ -79,7 +73,7 @@ sub _get_file {
       elsif (-f $full) {
         open my $fh, '<', $full
           or die "Couldn't open ${full} for ${file}: $!";
-        return $fh;
+        return ($fh, undef, $full);
       }
     }
   }
@@ -89,7 +83,7 @@ sub _get_file {
       next unless -f $full;
       open my $fh, '<', $full
         or die "Couldn't open ${full} for ${file}: $!";
-      return $fh;
+      return ($fh, undef, $full);
     }
 
     my @cb = defined blessed $inc ? $inc->INC($file)
@@ -103,26 +97,34 @@ sub _get_file {
       $fh = shift @cb;
     }
 
-    if (ref $cb[0] eq 'CODE') {
-      my $cb = shift @cb;
-      # require docs are wrong, perl sends 0 as the first param
-      my @params = (0, @cb ? $cb[0] : ());
-
-      my $module = '';
-      while (1) {
-        local $_ = $fh ? <$fh> : '';
-        $_ = ''
-          if !defined;
-        last if !$cb->(@params);
-        $module .= $_;
-      }
-      return $file;
+    if ((reftype $cb[0]||'') eq 'CODE') {
+      splice @cb, 2
+        if @cb > 2;
+      return ($fh, \@cb);
     }
     elsif ($fh) {
-      return $fh;
+      return ($fh);
     }
   }
   croak "Can't find file $file";
+}
+
+sub _read {
+  my ($fh, $cb) = @_;
+  if ($fh && !$cb) {
+    local $/;
+    return scalar <$fh>;
+  }
+  ($cb, my @params) = @$cb;
+  my $content = '';
+  while (1) {
+    local $_ = $fh ? <$fh> : '';
+    $_ = ''
+      if !defined;
+    last if !$cb->(0, @params);
+    $content .= $_;
+  }
+  return $content;
 }
 
 1;
