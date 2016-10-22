@@ -25,12 +25,22 @@ sub _mod_to_file {
   $file;
 }
 
+sub _options {
+  my @inc = @_;
+  my $opts = ref $_[-1] eq 'HASH' && pop @inc || {};
+  if (@inc) {
+    carp "Providing directory to search as a list is deprecated.  The 'inc' option should be used instead.";
+    $opts->{inc} = \@inc
+  }
+  return $opts;
+}
+
 sub module_content {
   inc_content(_mod_to_file($_[0]), @_[1..$#_]);
 }
 
 sub inc_content {
-  my $file = _get_file(@_);
+  my $file = _get_file($_[0], _options(@_[1..$#_]));
   if (ref $file) {
     local $/;
     return scalar <$file>;
@@ -45,7 +55,7 @@ sub module_handle {
 }
 
 sub inc_handle {
-  my $file = _get_file(@_);
+  my $file = _get_file($_[0], _options(@_[1..$#_]));
   if (ref $file) {
     return $file;
   }
@@ -59,11 +69,8 @@ sub inc_handle {
 }
 
 sub _get_file {
-  my ($file, @inc) = @_;
-  my $opts = ref $_[-1] && ref $_[-1] eq 'HASH' && pop @inc || {};
-  if (!@inc) {
-    @inc = @INC;
-  }
+  my ($file, $opts) = @_;
+  my @inc = @{$opts->{inc}||\@INC};
   if (my $found = $opts->{found}) {
     if (my $full = $found->{$file}) {
       if (ref $full) {
