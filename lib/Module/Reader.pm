@@ -92,8 +92,8 @@ sub _get_file {
       return $fh;
     }
 
-    my @cb = ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $file)
-           : blessed $inc         ? $inc->INC($file)
+    my @cb = defined blessed $inc ? $inc->INC($file)
+           : ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $file)
                                   : $inc->($inc, $file);
 
     next
