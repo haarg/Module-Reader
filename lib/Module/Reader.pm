@@ -13,6 +13,7 @@ our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 use File::Spec;
 use Scalar::Util qw(blessed reftype openhandle);
 use Carp;
+use Errno qw(EACCES);
 use constant _OPEN_STRING => $] >= 5.008;
 BEGIN {
   require IO::String
@@ -70,7 +71,7 @@ sub _get_file {
       if (ref $full) {
         @inc = $full;
       }
-      elsif (-f $full) {
+      elsif (-e $full && !-d _ && !-b _) {
         open my $fh, '<', $full
           or croak "Can't locate $file:   $full: $!";
         return ($fh, undef, $full);
@@ -80,7 +81,8 @@ sub _get_file {
   for my $inc (@inc) {
     if (!ref $inc) {
       my $full = File::Spec->catfile($inc, $file);
-      next unless -f $full;
+      next
+        if -e $try ? (-d _ || -b _) : $! != EACCES;
       open my $fh, '<', $full
         or croak "Can't locate $file:   $full: $!";
       return ($fh, undef, $full);
