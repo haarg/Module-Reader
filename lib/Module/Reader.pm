@@ -72,7 +72,7 @@ sub _get_file {
       }
       elsif (-f $full) {
         open my $fh, '<', $full
-          or die "Couldn't open ${full} for ${file}: $!";
+          or croak "Can't locate $file:   $full: $!";
         return ($fh, undef, $full);
       }
     }
@@ -82,7 +82,7 @@ sub _get_file {
       my $full = File::Spec->catfile($inc, $file);
       next unless -f $full;
       open my $fh, '<', $full
-        or die "Couldn't open ${full} for ${file}: $!";
+        or croak "Can't locate $file:   $full: $!";
       return ($fh, undef, $full);
     }
 
@@ -106,7 +106,7 @@ sub _get_file {
       return ($fh);
     }
   }
-  croak "Can't find file $file";
+  croak "Can't locate $file";
 }
 
 sub _read {
