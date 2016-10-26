@@ -13,8 +13,13 @@ our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 use File::Spec;
 use Scalar::Util qw(blessed reftype openhandle);
 use Carp;
+use Config ();
 use Errno qw(EACCES);
 use constant _OPEN_STRING => $] >= 5.008;
+use constant _PMC_ENABLED => !(
+  exists &Config::non_bincompat_options ? grep { $_ eq 'PERL_DISABLE_PMC' } Config::non_bincompat_options()
+  : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
+);
 BEGIN {
   require IO::String
     if !_OPEN_STRING;
@@ -78,14 +83,20 @@ sub _get_file {
       }
     }
   }
+
   for my $inc (@inc) {
     if (!ref $inc) {
       my $full = File::Spec->catfile($inc, $file);
-      next
-        if -e $try ? (-d _ || -b _) : $! != EACCES;
-      open my $fh, '<', $full
-        or croak "Can't locate $file:   $full: $!";
-      return ($fh, undef, $full);
+      for my $try ((_PMC_ENABLED && $file =~ /\.pm$/ ? $full.'c' : ()), $full) {
+        next
+          if -e $try ? (-d _ || -b _) : $! != EACCES;
+        my $fh;
+        open $fh, '<', $try
+          and return ($fh, undef, $try);
+        croak "Can't locate $file:   $full: $!"
+          if $try eq $full;
+      }
+      next;
     }
 
     my @cb = defined blessed $inc ? $inc->INC($file)
