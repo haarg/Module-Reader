@@ -11,7 +11,7 @@ our @EXPORT_OK = qw(module_content module_handle);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
 use File::Spec;
-use Scalar::Util qw(blessed reftype openhandle);
+use Scalar::Util qw(blessed reftype refaddr openhandle);
 use Carp;
 use Config ();
 use Errno qw(EACCES);
@@ -105,6 +105,9 @@ sub _get_file {
 
     next
       unless ref $cb[0];
+
+    my $fake_file = sprintf '/loader/0x%x/%s', refaddr($inc), $file;
+
     my $fh;
     if (reftype $cb[0] eq 'GLOB' && openhandle $cb[0]) {
       $fh = shift @cb;
@@ -113,10 +116,10 @@ sub _get_file {
     if ((reftype $cb[0]||'') eq 'CODE') {
       splice @cb, 2
         if @cb > 2;
-      return ($fh, \@cb);
+      return ($fh, \@cb, $fake_file);
     }
     elsif ($fh) {
-      return ($fh);
+      return ($fh, undef, $fake_file);
     }
   }
   croak "Can't locate $file";
