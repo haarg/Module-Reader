@@ -20,9 +20,12 @@ use constant _PMC_ENABLED => !(
   exists &Config::non_bincompat_options ? grep { $_ eq 'PERL_DISABLE_PMC' } Config::non_bincompat_options()
   : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
 );
+use constant _VMS => $^O eq 'VMS';
 BEGIN {
   require IO::String
     if !_OPEN_STRING;
+  require VMS::Filespec
+    if _VMS;
 }
 
 sub _mod_to_file {
@@ -86,7 +89,9 @@ sub _get_file {
 
   for my $inc (@inc) {
     if (!ref $inc) {
-      my $full = File::Spec->catfile($inc, $file);
+      my $full = _VMS ? VMS::Filespec::unixpath($inc) : $inc;
+      $full =~ s{/?$}{/};
+      $full .= $file;
       for my $try ((_PMC_ENABLED && $file =~ /\.pm$/ ? $full.'c' : ()), $full) {
         next
           if -e $try ? (-d _ || -b _) : $! != EACCES;
