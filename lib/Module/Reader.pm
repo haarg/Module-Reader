@@ -71,6 +71,15 @@ sub inc_handle {
   }
 }
 
+sub module_filename {
+  inc_filename(_mod_to_file($_[0]), @_[1..$#_]);
+}
+
+sub inc_filename {
+  my ($fh, $cb, $file) = _get_file($_[0], _options(@_[1..$#_]));
+  return $file;
+}
+
 sub _get_file {
   my ($file, $opts) = @_;
   my @inc = @{$opts->{inc}||\@INC};
