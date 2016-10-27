@@ -7,7 +7,14 @@ our $VERSION = '0.002003';
 $VERSION = eval $VERSION;
 
 use base 'Exporter';
-our @EXPORT_OK = qw(module_content module_handle);
+our @EXPORT_OK = qw(
+  module_content
+  module_handle
+  module_filename
+  inc_content
+  inc_handle
+  inc_filename
+);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
 use File::Spec;
