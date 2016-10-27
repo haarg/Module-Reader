@@ -15,7 +15,7 @@ use Scalar::Util qw(blessed reftype refaddr openhandle);
 use Carp;
 use Config ();
 use Errno qw(EACCES);
-use constant _OPEN_STRING => $] >= 5.008;
+use constant _OPEN_STRING => "$]" >= 5.008;
 use constant _PMC_ENABLED => !(
   exists &Config::non_bincompat_options ? grep { $_ eq 'PERL_DISABLE_PMC' } Config::non_bincompat_options()
   : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
@@ -75,8 +75,8 @@ sub _get_file {
   my ($file, $opts) = @_;
   my @inc = @{$opts->{inc}||\@INC};
   if (my $found = $opts->{found}) {
-    if (my $full = $found->{$file}) {
-      if (ref $full) {
+    if (defined( my $full = $found->{$file} )) {
+      if (length ref $full) {
         @inc = $full;
       }
       elsif (-e $full && !-d _ && !-b _) {
@@ -88,7 +88,7 @@ sub _get_file {
   }
 
   for my $inc (@inc) {
-    if (!ref $inc) {
+    if (!length ref $inc) {
       my $full = _VMS ? VMS::Filespec::unixpath($inc) : $inc;
       $full =~ s{/?$}{/};
       $full .= $file;
@@ -109,7 +109,7 @@ sub _get_file {
                                   : $inc->($inc, $file);
 
     next
-      unless ref $cb[0];
+      unless length ref $cb[0];
 
     my $fake_file = sprintf '/loader/0x%x/%s', refaddr($inc), $file;
 
