@@ -28,6 +28,11 @@ use constant _PMC_ENABLED => !(
   : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
 );
 use constant _VMS => $^O eq 'VMS';
+use constant _FAKE_FILE_FORMAT => do {
+  (my $uvx = $Config::Config{uvxformat}||'') =~ tr/"//d;
+  $uvx ||= 'lx';
+  "/loader/0x%$uvx/%s"
+};
 BEGIN {
   require IO::String
     if !_OPEN_STRING;
@@ -127,7 +132,7 @@ sub _get_file {
     next
       unless length ref $cb[0];
 
-    my $fake_file = sprintf '/loader/0x%x/%s', refaddr($inc), $file;
+    my $fake_file = sprintf _FAKE_FILE_FORMAT, refaddr($inc), $file;
 
     my $fh;
     if (reftype $cb[0] eq 'GLOB' && openhandle $cb[0]) {
