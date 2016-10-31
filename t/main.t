@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More 0.88;
 use Module::Reader qw(:all);
+use lib 't/lib';
 
 my $mod_content = do {
   open my $fh, '<', 't/lib/TestLib.pm';
@@ -10,10 +11,6 @@ my $mod_content = do {
   <$fh>;
 };
 
-{
-  local @INC = @INC;
-  unshift @INC, 't/lib';
-  is module_content('TestLib'), $mod_content, 'correctly load module from disk';
-}
+is module_content('TestLib'), $mod_content, 'correctly load module from disk';
 
 done_testing;
