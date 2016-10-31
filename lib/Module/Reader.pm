@@ -101,7 +101,7 @@ sub _get_file {
         @inc = $full;
       }
       elsif (-e $full && !-d _ && !-b _) {
-        open my $fh, '<', $full
+        open my $fh, '<:', $full
           or croak "Can't locate $file:   $full: $!";
         return ($fh, undef, $full);
       }
@@ -117,7 +117,7 @@ sub _get_file {
         next
           if -e $try ? (-d _ || -b _) : $! != EACCES;
         my $fh;
-        open $fh, '<', $try
+        open $fh, '<:', $try
           and return ($fh, undef, $try);
         croak "Can't locate $file:   $full: $!"
           if $try eq $full;
