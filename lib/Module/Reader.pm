@@ -180,42 +180,79 @@ Module::Reader - Read the source of a module like perl does
 =head1 SYNOPSIS
 
   use Module::Reader qw(:all);
+
   my $io = module_handle('My::Module');
   my $content = module_content('My::Module');
+  my $filename = module_filename('My::Module');
 
-  my $io = module_handle('My::Module', @search_dirs);
+  my $io = inc_handle('My/Module.pm');
+  my $content = inc_content('My/Module.pm');
+  my $filename = inc_filename('My/Module.pm');
 
-  my $io = module_handle('My::Module', @search_dirs, { found => \%INC });
+  my $io = module_handle('My::Module', { inc => \@search_dirs } );
+
+  my $io = module_handle('My::Module', { inc => \@search_dirs, found => \%INC } );
 
 =head1 DESCRIPTION
 
-Reads the content of perl modules the same way perl does.  This
-includes reading modules available only by L<@INC hooks|perlfunc/require>, or filtered
-through them.
+Reads the content of perl modules the same way perl does.  This includes reading
+modules available only by L<@INC hooks|perlfunc/require>, or filtered through
+them.  Modules can be accessed as content, a file handle, or a filename.
 
 =head1 EXPORTS
 
-=head2 module_handle( $module_name, @search_dirs, \%options )
+=head2 module_handle ( $module_name, \%options )
 
-Returns an IO handle to the given module.  Searches the directories
-specified, or L<@INC|perlvar/@INC> if none are.
+Returns an IO handle to the given module.
 
 =head3 Options
 
 =over 4
 
+=item inc
+
+A reference to an array like L<@INC|perlvar/@INC> with directories or hooks as
+described in the documentation for L<require|perlfunc/require>.  If not
+specified, C<@INC> will be used.
+
 =item found
 
 A reference to a hash like L<%INC|perlvar/%INC> with module file names (in the
-style 'F<My/Module.pm>') as keys and full file paths as values.
-Modules listed in this will be used in preference to searching
-through directories.
+style 'F<My/Module.pm>') as keys and full file paths as values.  Modules listed
+in this will be used in preference to searching through directories.
 
 =back
 
-=head2 module_content( $module_name, @search_dirs, \%options )
+=head2 module_content ( $module_name, \%options )
 
-Returns the content of the given module.  Accepts the same options as C<module_handle>.
+Returns the content of the given module.  Accepts the same options as
+L</module_handle>.
+
+=head2 module_filename ( $module_name, \%options )
+
+Returns the filename of the given module.  Accepts the same options as
+L</module_handle>.  Filenames will be relative if the paths in C<@INC> are
+relative.
+
+For files provided by an hook, the filename will look like
+C</loader/0x012345789abcdef/My/Module.pm>.  This should match the filename perl
+will use internally for things like C<__FILE__> or L<caller()|perlfunc/caller>.
+The hexadecimal value is the refaddr of the hook.
+
+=head2 inc_handle ( $filename, \%options )
+
+Works the same as L</module_handle>, but accepting a file path fragment rather
+than a module name (e.g. C<My/Module.pm>).
+
+=head2 inc_content ( $filename, \%options )
+
+Works the same as L</module_content>, but accepting a file path fragment rather
+than a module name.
+
+=head2 inc_filename ( $filename, \%options )
+
+Works the same as L</module_filename>, but accepting a file path fragment rather
+than a module name.
 
 =head1 AUTHOR
 
