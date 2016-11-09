@@ -283,84 +283,228 @@ __END__
 
 =head1 NAME
 
-Module::Reader - Read the source of a module like perl does
+Module::Reader - Find and read perl modules like perl does
 
 =head1 SYNOPSIS
 
-  use Module::Reader qw(:all);
+  use Module::Reader;
 
+  my $reader      = Module::Reader->new;
+  my $module      = $reader->module("My::Module");
+  my $filename    = $module->found_file;
+  my $content     = $module->content;
+  my $file_handle = $module = $module->handle;
+
+  # search options
+  my $other_reader = Module::Reader->new(inc => ["/some/lib/dir", "/another/lib/dir"]);
+  my $other_reader2 = Module::Reader->new(found => { 'My/Module.pm' => '/a_location.pm' });
+
+  # Functional Interface
+  use Module::Reader qw(module_handle module_content);
   my $io = module_handle('My::Module');
   my $content = module_content('My::Module');
-  my $filename = module_filename('My::Module');
 
-  my $io = inc_handle('My/Module.pm');
-  my $content = inc_content('My/Module.pm');
-  my $filename = inc_filename('My/Module.pm');
-
-  my $io = module_handle('My::Module', { inc => \@search_dirs } );
-
-  my $io = module_handle('My::Module', { inc => \@search_dirs, found => \%INC } );
 
 =head1 DESCRIPTION
 
-Reads the content of perl modules the same way perl does.  This includes reading
-modules available only by L<@INC hooks|perlfunc/require>, or filtered through
-them.  Modules can be accessed as content, a file handle, or a filename.
+This module finds modules in C<@INC> using the same algorithm perl does.  From
+that, it will give you the source content of a module, the file name (where
+available), and how it was found.  Searches (and content) are based on the same
+internal rules that perl uses for F<perlfunc/require> and F<perlfunc/do>.
 
 =head1 EXPORTS
 
-=head2 module_handle ( $module_name, \%options )
+=head2 module_handle ( $module_name, @search_directories )
 
-Returns an IO handle to the given module.
+Returns an IO handle for the given module.
 
-=head3 Options
+=head2 module_content ( $module_name, @search_directories )
+
+Returns the content of a given module.
+
+=head1 CLASS ATTRIBUTES
 
 =over 4
 
 =item inc
 
-A reference to an array like L<@INC|perlvar/@INC> with directories or hooks as
-described in the documentation for L<require|perlfunc/require>.  If not
-specified, C<@INC> will be used.
+An array reference containing a list of directories or hooks to search for
+modules or files.  This will be used in the same manner that L<perlfunc/require>
+uses L<perlvar/@INC>.  If not provided, L<perlvar/@INC> itself will be used.
 
 =item found
 
-A reference to a hash like L<%INC|perlvar/%INC> with module file names (in the
-style 'F<My/Module.pm>') as keys and full file paths as values.  Modules listed
-in this will be used in preference to searching through directories.
+A hash reference of module filenames (of C<My/Module.pm> format>) to files that
+exist on disk, working the same as F<%INC/perlvar>.  The values can optionally
+be an F<C<@INC> hook|perlvar/@INC>.  This option can also be 1, in which case
+L<perlfunc/%INC> will be used instead.
+
+=item pmc
+
+A boolean controlling if C<.pmc> files should be found in preference to C<.pm>
+files.  If not specified, the same behavior perl was compiled with will be used.
 
 =back
 
-=head2 module_content ( $module_name, \%options )
+=head1 METHODS
 
-Returns the content of the given module.  Accepts the same options as
-L</module_handle>.
+=head2 module
 
-=head2 module_filename ( $module_name, \%options )
+Returns a L<file object|/FILE OBJECTS> for the given module name.  If the module
+can't be found, an exception will be raised.
 
-Returns the filename of the given module.  Accepts the same options as
-L</module_handle>.  Filenames will be relative if the paths in C<@INC> are
-relative.
+=head2 file
 
-For files provided by an hook, the filename will look like
-C</loader/0x012345789abcdef/My/Module.pm>.  This should match the filename perl
-will use internally for things like C<__FILE__> or L<caller()|perlfunc/caller>.
-The hexadecimal value is the refaddr of the hook.
+Returns a L<file object|/FILE OBJECTS> for the given file name.  If the file
+can't be found, an exception will be raised.  For files starting with C<./> or
+C<../>, no directory search will be performed.
 
-=head2 inc_handle ( $filename, \%options )
+=head2 modules
 
-Works the same as L</module_handle>, but accepting a file path fragment rather
-than a module name (e.g. C<My/Module.pm>).
+Returns an array of L<file objects|/FILE OBJECTS> for a given module name.  This
+will give every file that could be loaded based on the L</inc> options.
 
-=head2 inc_content ( $filename, \%options )
+=head2 files
 
-Works the same as L</module_content>, but accepting a file path fragment rather
-than a module name.
+Returns an array of L<file objects|/FILE OBJECTS> for a given file name.  This
+will give every file that could be loaded based on the L</inc> options.
 
-=head2 inc_filename ( $filename, \%options )
+=head1 FILE OBJECTS
 
-Works the same as L</module_filename>, but accepting a file path fragment rather
-than a module name.
+The file objects returned represent an entry that could be found in
+L<perlfunc/@INC>.  While they will generally be files that exist on the file
+system somewhere, they may also represent files that only exist only in memory
+or have arbitrary filters applied.
+
+=head2 FILE METHODS
+
+=head3 filename
+
+The filename that was seached for.
+
+=head3 module
+
+If a module was searched for, or a file of the matching form (C<My/Module.pm>),
+this will be the module searched for.
+
+=head3 found_file
+
+The path to the file found by L<perlfunc/require>.
+
+This may not represent an actual file that exists, but the file name that perl
+is using for the file for things like L<perlfunc/caller> or L<perlfunc/__FILE__>.
+
+For C<.pmc> files, this will be the C<.pm> form of the file.
+
+For L<@INC hooks|perlfunc/require> this will be a file name of the form
+C</loader/0x123456abcdef/My/Module.pm>, matching how perl treats them internally.
+
+=head3 disk_file
+
+The path to the file that exists on disk.  When the file is found via an
+L<@INC hook|perlfunc/require>, this will be undef.
+
+=head3 is_pnc
+
+A boolean value representing if the file found was C<.pmc> variant of the file
+requested.
+
+=head3 inc_entry
+
+The directory or L<hook|perlfunc/require> that was used to find the given file
+or module.  IF L</found> is used, this may be undef.
+
+=head3 raw_filehandle
+
+The raw file handle to the file found.  This will be either a file handle to a
+file on disk, or something returned by an F<@INC hook|perlfunc/require>.  This
+should only be used by code intending to interrogate
+L<@INC hooks|perlfunc/require>.
+
+=head3 read_callback
+
+A callback meant to be used to read or modify content from an
+F<@INC hook|perlfunc/require> for the file handle.
+
+=head3 read_callback_options
+
+The arguments to be sent to the read callback for modifying content from an
+F<@INC hook|perlfunc/require> for the file handle.
+
+=head1 SEE ALSO
+
+Numerous other modules attempt to do C<@INC> searches similar to this module,
+but no other module accurately represents how perl itself uses L<perlvar/@INC>.
+
+Some of these modules have other use cases.  The following comments are
+primarily related to their ability to search C<@INC>.
+
+=over 4
+
+=item L<App::moduleswhere>
+
+Only available as a command line utility.  Inaccurately gives the first file
+found on disk in C<@INC>.
+
+=item L<App::whichpm>
+
+Inaccurately gives the first file found on disk in C<@INC>.
+
+=item L<Class::Inspector>
+
+For unloaded modules, inaccurately checks if a module exists.
+
+=item L<Module::Data>
+
+Same caveats as L</Path::ScanINC>.
+
+=item L<Module::Filename>
+
+Inaccurately gives the first file found on disk in C<@INC>.
+
+=item L<Module::Finder>
+
+Inaccurately searches for C<.pm> and C<.pmc> files in subdirectories of C<@INC>.
+
+=item L<Module::Info>
+
+Inaccurately searches C<@INC> for files and gives inaccurate information for the
+files that it finds.
+
+=item L<Module::Locate>
+
+Innacurately searches C<@INC> for matching files.  Attempts to handle hooks, but
+handles most cases wrong.
+
+=item L<Module::Mapper>
+
+Searches for C<.pm> and C<.pod> files in relatively unpredictable fashion,
+based usually on the current directory.  Optionally, can inaccurately scan
+C<@INC>.
+
+=item L<Module::Metadata>
+
+Primarily designed as a version number extractor.  Meant to find files on disk,
+avoiding the nuance involved in perl's file loading.
+
+=item L<Module::Path>
+
+Inaccurately gives the first file found on disk in C<@INC>.
+
+=item L<Module::Util>
+
+Inaccurately searches for modules, ignoring C<@INC> hooks.
+
+=item L<Path::ScanINC>
+
+Inaccurately searches for files, with confusing output for C<@INC> hooks.
+
+=item L<Pod::Perldoc>
+
+Primarily meant for searching for related documentation.  Finds related module
+files, or sometimes C<.pod> files.  Unpredictable search path.
+
+=back
 
 =head1 AUTHOR
 
