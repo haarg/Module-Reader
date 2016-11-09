@@ -412,7 +412,7 @@ requested.
 =head3 inc_entry
 
 The directory or L<hook|perlfunc/require> that was used to find the given file
-or module.  IF L</found> is used, this may be undef.
+or module.  If L</found> is used, this may be undef.
 
 =head3 raw_filehandle
 
@@ -423,13 +423,12 @@ L<@INC hooks|perlfunc/require>.
 
 =head3 read_callback
 
-A callback meant to be used to read or modify content from an
-F<@INC hook|perlfunc/require> for the file handle.
+A callback used to read content, or modify a file handle from an C<@INC> hook.
 
 =head3 read_callback_options
 
-The arguments to be sent to the read callback for modifying content from an
-F<@INC hook|perlfunc/require> for the file handle.
+An array reference of arguments to send to the read callback whem reading or
+modifying content from a file handle.
 
 =head1 SEE ALSO
 
