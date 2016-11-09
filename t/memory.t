@@ -53,7 +53,7 @@ sub inc_module {
     is module_content('TestLib', { found => \%INC } ), $mod_content,
       'found => \%INC loads mod as it was required';
   }
-  is module_filename('TestLib'), $TestLib::FILENAME,
+  is +Module::Reader->new->module('TestLib')->found_file, $TestLib::FILENAME,
     'calculated file matches loaded filename';
 }
 

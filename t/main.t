@@ -6,7 +6,7 @@ use Module::Reader qw(:all);
 use lib 't/lib';
 
 my $mod_content = do {
-  open my $fh, '<', 't/lib/TestLib.pm';
+  open my $fh, '<:', 't/lib/TestLib.pm';
   local $/;
   <$fh>;
 };

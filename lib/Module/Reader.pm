@@ -6,15 +6,8 @@ use warnings;
 our $VERSION = '0.002003';
 $VERSION = eval $VERSION;
 
-use base 'Exporter';
-our @EXPORT_OK = qw(
-  module_content
-  module_handle
-  module_filename
-  inc_content
-  inc_handle
-  inc_filename
-);
+use Exporter (); *import = \&Exporter::import;
+our @EXPORT_OK = qw(module_content module_handle);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
 use File::Spec;
@@ -22,23 +15,17 @@ use Scalar::Util qw(blessed reftype refaddr openhandle);
 use Carp;
 use Config ();
 use Errno qw(EACCES);
-use constant _OPEN_STRING => "$]" >= 5.008;
 use constant _PMC_ENABLED => !(
   exists &Config::non_bincompat_options ? grep { $_ eq 'PERL_DISABLE_PMC' } Config::non_bincompat_options()
   : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
 );
-use constant _VMS => $^O eq 'VMS';
+use constant _VMS => $^O eq 'VMS' && !!require VMS::Filespec;
+use constant _WIN32 => $^O eq 'MSWin32';
 use constant _FAKE_FILE_FORMAT => do {
   (my $uvx = $Config::Config{uvxformat}||'') =~ tr/"//d;
   $uvx ||= 'lx';
   "/loader/0x%$uvx/%s"
 };
-BEGIN {
-  require IO::String
-    if !_OPEN_STRING;
-  require VMS::Filespec
-    if _VMS;
-}
 
 sub _mod_to_file {
   my $module = shift;
@@ -46,127 +33,248 @@ sub _mod_to_file {
   $file;
 }
 
-sub _options {
-  my @inc = @_;
-  my $opts = ref $_[-1] eq 'HASH' && pop @inc || {};
-  if (@inc) {
-    carp "Providing directory to search as a list is deprecated.  The 'inc' option should be used instead.";
-    $opts->{inc} = \@inc
-  }
-  return $opts;
-}
-
 sub module_content {
-  inc_content(_mod_to_file($_[0]), @_[1..$#_]);
-}
-
-sub inc_content {
-  my ($fh, $cb, $file) = _get_file($_[0], _options(@_[1..$#_]));
-  return _read($fh, $cb);
+  my $opts = ref $_[-1] eq 'HASH' && pop @_ || {};
+  my $module = shift;
+  $opts->{inc} = [@_]
+    if @_;
+  __PACKAGE__->new($opts)->module($module)->content;
 }
 
 sub module_handle {
-  inc_handle(_mod_to_file($_[0]), @_[1..$#_]);
+  my $opts = ref $_[-1] eq 'HASH' && pop @_ || {};
+  my $module = shift;
+  $opts->{inc} = [@_]
+    if @_;
+  __PACKAGE__->new($opts)->module($module)->handle;
 }
 
-sub inc_handle {
-  my ($fh, $cb, $file) = _get_file($_[0], _options(@_[1..$#_]));
-  return $fh
-    if $fh && !$cb;
-  my $content = _read($fh, $cb);
-  if (_OPEN_STRING) {
-    open my $fh, '<', \$content;
-    return $fh;
+sub new {
+  my $class = shift;
+  my %options;
+  if (@_ == 1 && ref $_[-1]) {
+    %options = %{(pop)};
+  }
+  elsif (@_ % 2 == 0) {
+    %options = @_;
   }
   else {
-    return IO::String->new($content);
-  }
-}
-
-sub module_filename {
-  inc_filename(_mod_to_file($_[0]), @_[1..$#_]);
-}
-
-sub inc_filename {
-  my ($fh, $cb, $file) = _get_file($_[0], _options(@_[1..$#_]));
-  return $file;
-}
-
-sub _get_file {
-  my ($file, $opts) = @_;
-  my @inc = @{$opts->{inc}||\@INC};
-  if (my $found = $opts->{found}) {
-    if (defined( my $full = $found->{$file} )) {
-      if (length ref $full) {
-        @inc = $full;
-      }
-      elsif (-e $full && !-d _ && !-b _) {
-        open my $fh, '<:', $full
-          or croak "Can't locate $file:   $full: $!";
-        return ($fh, undef, $full);
-      }
-    }
+    croak "Expected hash ref, or key value pairs.  Got ".@_." arguments.";
   }
 
-  for my $inc (@inc) {
-    if (!length ref $inc) {
-      my $full = _VMS ? VMS::Filespec::unixpath($inc) : $inc;
-      $full =~ s{/?$}{/};
-      $full .= $file;
-      for my $try ((_PMC_ENABLED && $file =~ /\.pm$/ ? $full.'c' : ()), $full) {
-        next
-          if -e $try ? (-d _ || -b _) : $! != EACCES;
-        my $fh;
-        open $fh, '<:', $try
-          and return ($fh, undef, $try);
-        croak "Can't locate $file:   $full: $!"
-          if $try eq $full;
+  $options{inc} ||= \@INC;
+  $options{found} = \%INC
+    if exists $options{found} && $options{found} eq 1;
+  $options{pmc} = _PMC_ENABLED
+    if !exists $options{pmc};
+  bless \%options, $class;
+}
+
+sub module {
+  my ($self, $module) = @_;
+  $self->file(_mod_to_file($module));
+}
+
+sub modules {
+  my ($self, $module) = @_;
+  $self->files(_mod_to_file($module));
+}
+
+sub file {
+  my ($self, $file) = @_;
+  $self->_find($file);
+}
+
+sub files {
+  my ($self, $file) = @_;
+  $self->_find($file, 1);
+}
+
+sub _searchable {
+  my $file = shift;
+    File::Spec->file_name_is_absolute($file) ? 0
+  : _WIN32 && $file =~ m{^\.\.?[/\\]}        ? 0
+  : $file =~ m{^\.\.?/}                      ? 0
+                                             : 1
+}
+
+sub _find {
+  my ($self, $file, $all) = @_;
+
+  if (!_searchable($file)) {
+    my $open = _open_file($file);
+    return $open
+      if $open;
+    croak "Can't locate $file";
+  }
+
+  my @found;
+  eval {
+    if (my $found = $self->{found}) {
+      if (defined( my $full = $found->{$file} )) {
+        my $open = length ref $full ? $self->_open_ref($full, $file)
+                                    : $self->_open_file($full, $file);
+        push @found, $open
+          if $open;
       }
-      next;
     }
+  };
+  if (!$all) {
+    return $found[0]
+      if @found;
+    die $@
+      if $@;
+  }
+  my $search = $self->{inc};
+  for my $inc (@$search) {
+    my $open;
+    eval {
+      if (!length ref $inc) {
+        my $full = _VMS ? VMS::Filespec::unixpath($inc) : $inc;
+        $full =~ s{/?$}{/};
+        $full .= $file;
+        $open = $self->_open_file($full, $file, $inc);
+      }
+      else {
+        $open = $self->_open_ref($inc, $file);
+      }
+      push @found, $open
+        if $open;
+    };
+    if (!$all) {
+      return $found[0]
+        if @found;
+      die $@
+        if $@;
+    }
+  }
+  croak "Can't locate $file"
+    if !$all;
+  return @found;
+}
 
-    my @cb = defined blessed $inc ? $inc->INC($file)
-           : ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $file)
-                                  : $inc->($inc, $file);
-
+sub _open_file {
+  my ($self, $full, $file, $inc) = @_;
+  for my $try (
+    ($self->{pmc} && $file =~ /\.pm\z/ ? $full.'c' : ()),
+    $full,
+  ) {
+    my $pmc = $full eq $try;
     next
-      unless length ref $cb[0];
-
-    my $fake_file = sprintf _FAKE_FILE_FORMAT, refaddr($inc), $file;
-
+      if -e $try ? (-d _ || -b _) : $! != EACCES;
     my $fh;
-    if (reftype $cb[0] eq 'GLOB' && openhandle $cb[0]) {
-      $fh = shift @cb;
-    }
-
-    if ((reftype $cb[0]||'') eq 'CODE') {
-      splice @cb, 2
-        if @cb > 2;
-      return ($fh, \@cb, $fake_file);
-    }
-    elsif ($fh) {
-      return ($fh, undef, $fake_file);
-    }
+    open $fh, '<:', $try
+      and return Module::Reader::File->new(
+        filename        => $file,
+        raw_filehandle  => $fh,
+        found_file      => $full,
+        disk_file       => $try,
+        is_pmc          => $pmc,
+        (defined $inc ? (inc_entry => $inc) : ()),
+      );
+    croak "Can't locate $file:   $full: $!"
+      if $pmc;
   }
-  croak "Can't locate $file";
+  return;
 }
 
-sub _read {
-  my ($fh, $cb) = @_;
-  if ($fh && !$cb) {
-    local $/;
-    return scalar <$fh>;
+sub _open_ref {
+  my ($self, $inc, $file) = @_;
+
+  my @cb = defined blessed $inc ? $inc->INC($file)
+         : ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $file)
+                                : $inc->($inc, $file);
+
+  return
+    unless length ref $cb[0];
+
+  my $fake_file = sprintf _FAKE_FILE_FORMAT, refaddr($inc), $file;
+
+  my $fh;
+  my $cb;
+  my $cb_options;
+
+  if (reftype $cb[0] eq 'GLOB' && openhandle $cb[0]) {
+    $fh = shift @cb;
   }
-  ($cb, my @params) = @$cb;
-  my $content = '';
-  while (1) {
-    local $_ = $fh ? <$fh> : '';
-    $_ = ''
-      if !defined;
-    last if !$cb->(0, @params);
-    $content .= $_;
+
+  if ((reftype $cb[0]||'') eq 'CODE') {
+    $cb = $cb[0];
+    $cb_options = @cb > 1 ? [ $cb[1] ] : undef;
   }
-  return $content;
+  elsif (!$fh) {
+    return;
+  }
+  return Module::Reader::File->new(
+    filename => $file,
+    found_file => $fake_file,
+    inc_entry => $inc,
+    (defined $fh ? (raw_filehandle => $fh) : ()),
+    (defined $cb ? (read_callback => $cb) : ()),
+    (defined $cb_options ? (read_callback_options => $cb_options) : ()),
+  );
+}
+
+{
+  package Module::Reader::File;
+  use constant _OPEN_STRING => "$]" >= 5.008 || (require IO::String, 0);
+
+  sub new {
+    my ($class, %opts) = @_;
+    my $filename = $opts{filename};
+    if (!exists $opts{module} && $opts{filename}
+      && $opts{filename} =~ m{\A(\w+(?:/\w+)?)\.pm\z}) {
+      my $module = $1;
+      $module =~ s{/}{::}g;
+      $opts{module} = $module;
+    }
+    bless \%opts, $class;
+  }
+
+  sub filename              { $_[0]->{filename} }
+  sub module                { $_[0]->{module} }
+  sub raw_filehandle        { $_[0]->{raw_filehandle} }
+  sub found_file            { $_[0]->{found_file} }
+  sub disk_file             { $_[0]->{disk_file} }
+  sub is_pmc                { $_[0]->{is_pmc} }
+  sub inc_entry             { $_[0]->{inc_entry} }
+  sub read_callback         { $_[0]->{read_callback} }
+  sub read_callback_options { $_[0]->{read_callback_options} }
+
+  sub content {
+    my $self = shift;
+    my $fh = $self->raw_filehandle;
+    my $cb = $self->read_callback;
+    if ($fh && !$cb) {
+      local $/;
+      return scalar <$fh>;
+    }
+    my @params = @{$self->read_callback_options||[]};
+    my $content = '';
+    while (1) {
+      local $_ = $fh ? <$fh> : '';
+      $_ = ''
+        if !defined;
+      last if !$cb->(0, @params);
+      $content .= $_;
+    }
+    return $content;
+  }
+
+  sub handle {
+    my $self = shift;
+    my $fh = $self->raw_filehandle;
+    return $fh
+      if $fh && !$self->read_callback;
+    my $content = $self->content;
+    if (_OPEN_STRING) {
+      open my $fh, '<', \$content;
+      return $fh;
+    }
+    else {
+      return IO::String->new($content);
+    }
+  }
 }
 
 1;
