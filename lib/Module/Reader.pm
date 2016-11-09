@@ -404,7 +404,7 @@ C</loader/0x123456abcdef/My/Module.pm>, matching how perl treats them internally
 The path to the file that exists on disk.  When the file is found via an
 L<@INC hook|perlfunc/require>, this will be undef.
 
-=head3 is_pnc
+=head3 is_pmc
 
 A boolean value representing if the file found was C<.pmc> variant of the file
 requested.
