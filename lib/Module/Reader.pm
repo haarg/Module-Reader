@@ -245,6 +245,8 @@ sub _open_ref {
 
   sub content {
     my $self = shift;
+    return $self->{content}
+      if exists $self->{content};
     my $fh = $self->raw_filehandle;
     my $cb = $self->read_callback;
     if ($fh && !$cb) {
@@ -260,7 +262,7 @@ sub _open_ref {
       last if !$cb->(0, @params);
       $content .= $_;
     }
-    return $content;
+    return $self->{content} = $content;
   }
 
   sub handle {
