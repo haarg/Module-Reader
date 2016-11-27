@@ -6,7 +6,7 @@ use warnings;
 our $VERSION = '0.003_000';
 $VERSION = eval $VERSION;
 
-use Exporter (); *import = \&Exporter::import;
+use Exporter (); BEGIN { *import = \&Exporter::import }
 our @EXPORT_OK = qw(module_content module_handle);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
