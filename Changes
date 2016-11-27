@@ -1,5 +1,21 @@
 Revision history for Module-Reader
 
+  * Features
+    - add new object based interface, with more controls
+    - result objects include more information, including found filenames and
+      the @INC entry found in
+    - searches can be performed by filename rather than module name
+    - handle ./ and ../ like perl core for file searches
+    - list of all findable files can be returned
+
+  * Bug Fixes
+    - fix @INC hook edge case
+    - adjust error messages to match perl core
+    - handle special files (character devices, fifos) correctly
+    - handle permission denied errors correctly
+    - support pmc files
+    - ignore -C/PERL_UNICODE layers, as perl does
+
 0.002003 - 2014-08-21
   - fix dist name in meta files
 
