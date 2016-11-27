@@ -331,7 +331,8 @@ Module::Reader - Find and read perl modules like perl does
 This module finds modules in C<@INC> using the same algorithm perl does.  From
 that, it will give you the source content of a module, the file name (where
 available), and how it was found.  Searches (and content) are based on the same
-internal rules that perl uses for F<perlfunc/require> and F<perlfunc/do>.
+internal rules that perl uses for F<require|perlfunc/require> and
+F<do|perlfunc/do>.
 
 =head1 EXPORTS
 
@@ -350,15 +351,16 @@ Returns the content of a given module.
 =item inc
 
 An array reference containing a list of directories or hooks to search for
-modules or files.  This will be used in the same manner that L<perlfunc/require>
-uses L<perlvar/@INC>.  If not provided, L<perlvar/@INC> itself will be used.
+modules or files.  This will be used in the same manner that
+L<require|perlfunc/require> uses L<< C<@INC>|perlvar/@INC >>.  If not provided,
+L<< C<@INC>|perlvar/@INC >> itself will be used.
 
 =item found
 
 A hash reference of module filenames (of C<My/Module.pm> format>) to files that
-exist on disk, working the same as F<%INC/perlvar>.  The values can optionally
-be an F<C<@INC> hook|perlvar/@INC>.  This option can also be 1, in which case
-L<perlfunc/%INC> will be used instead.
+exist on disk, working the same as L<< C<%INC>|perlvar/%INC >>.  The values can
+optionally be an L<< C<@INC> hook|perlfunc/require >>.  This option can also be
+1, in which case L<< C<%INC>|perlfunc/%INC >> will be used instead.
 
 =item pmc
 
@@ -399,9 +401,9 @@ will give every file that could be loaded based on the L</inc> options.
 =head1 FILE OBJECTS
 
 The file objects returned represent an entry that could be found in
-L<perlfunc/@INC>.  While they will generally be files that exist on the file
-system somewhere, they may also represent files that only exist only in memory
-or have arbitrary filters applied.
+L<< C<@INC>|perlvar/@INC >>.  While they will generally be files that exist on
+the file system somewhere, they may also represent files that only exist only in
+memory or have arbitrary filters applied.
 
 =head2 FILE METHODS
 
@@ -416,20 +418,21 @@ this will be the module searched for.
 
 =head3 found_file
 
-The path to the file found by L<perlfunc/require>.
+The path to the file found by L<require|perlfunc/require>.
 
 This may not represent an actual file that exists, but the file name that perl
-will use for the file for things like L<perlfunc/caller> or L<perlfunc/__FILE__>.
+will use for the file for things like L<caller|perlfunc/caller> or
+L<__FILE__|perlfunc/__FILE__>.
 
 For C<.pmc> files, this will be the C<.pm> form of the file.
 
-For L<@INC hooks|perlfunc/require> this will be a file name of the form
+For L<< C<@INC> hooks|perlfunc/require >> this will be a file name of the form
 C</loader/0x123456abcdef/My/Module.pm>, matching how perl treats them internally.
 
 =head3 disk_file
 
 The path to the file that exists on disk.  When the file is found via an
-L<@INC hook|perlfunc/require>, this will be undef.
+L<< C<@INC> hook|perlfunc/require >>, this will be undef.
 
 =head3 content
 
@@ -454,13 +457,14 @@ or module.  If L</found> is used, this may be undef.
 File objects also have methods for the raw file handle and read callbacks used
 to read a file.  Interacting with the handle or callback can impact the return
 values of L</content> and L</handle>, and vice versa.  It should generally be
-avoided unless you are introspecting the F<@INC hooks|perlfunc/require>.
+avoided unless you are introspecting the F<< C<@INC> hooks|perlfunc/require >>.
 
 =head3 raw_filehandle
 
 The raw file handle to the file found.  This will be either a file handle to a
-file found on disk, or something returned by an F<@INC hook|perlfunc/require>.
-The hook callback, if it exists, will not be taken into account by this method.
+file found on disk, or something returned by an
+F<< C<@INC> hook|perlfunc/require >>.  The hook callback, if it exists, will not
+be taken into account by this method.
 
 =head3 read_callback
 
@@ -474,9 +478,10 @@ modifying content from a file handle.  Will contain either zero or one entries.
 =head1 SEE ALSO
 
 Numerous other modules attempt to do C<@INC> searches similar to this module,
-but no other module accurately represents how perl itself uses L<perlvar/@INC>.
-Most don't match perl's behavior regarding character and block devices,
-directories, or permissions.  Often, C<.pmc> files are not taken into account.
+but no other module accurately represents how perl itself uses
+L<< C<@INC>|perlvar/@INC >>.  Most don't match perl's behavior regarding
+character and block devices, directories, or permissions.  Often, C<.pmc> files
+are not taken into account.
 
 Some of these modules have other use cases.  The following comments are
 primarily related to their ability to search C<@INC>.
