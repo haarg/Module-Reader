@@ -364,8 +364,9 @@ can't be found, an exception will be raised.
 =head2 file
 
 Returns a L<file object|/FILE OBJECTS> for the given file name.  If the file
-can't be found, an exception will be raised.  For files starting with C<./> or
-C<../>, no directory search will be performed.
+can't be found, an exception will be raised.  For absolute paths, or files
+starting with C<./> or C<../> (and C<.\> or C<..\> on Windows), no directory
+search will be performed.
 
 =head2 modules
 
@@ -400,7 +401,7 @@ this will be the module searched for.
 The path to the file found by L<perlfunc/require>.
 
 This may not represent an actual file that exists, but the file name that perl
-is using for the file for things like L<perlfunc/caller> or L<perlfunc/__FILE__>.
+will use for the file for things like L<perlfunc/caller> or L<perlfunc/__FILE__>.
 
 For C<.pmc> files, this will be the C<.pm> form of the file.
 
@@ -412,6 +413,14 @@ C</loader/0x123456abcdef/My/Module.pm>, matching how perl treats them internally
 The path to the file that exists on disk.  When the file is found via an
 L<@INC hook|perlfunc/require>, this will be undef.
 
+=head3 content
+
+The content of the found file.
+
+=head3 handle
+
+A file handle to the found file's content.
+
 =head3 is_pmc
 
 A boolean value representing if the file found was C<.pmc> variant of the file
@@ -422,12 +431,18 @@ requested.
 The directory or L<hook|perlfunc/require> that was used to find the given file
 or module.  If L</found> is used, this may be undef.
 
+=head2 RAW HOOK DATA
+
+File objects also have methods for the raw file handle and read callbacks used
+to read a file.  Interacting with the handle or callback can impact the return
+values of L</content> and L</handle>, and vice versa.  It should generally be
+avoided unless you are introspecting the F<@INC hooks|perlfunc/require>.
+
 =head3 raw_filehandle
 
 The raw file handle to the file found.  This will be either a file handle to a
-file on disk, or something returned by an F<@INC hook|perlfunc/require>.  This
-should only be used by code intending to interrogate
-L<@INC hooks|perlfunc/require>.
+file found on disk, or something returned by an F<@INC hook|perlfunc/require>.
+The hook callback, if it exists, will not be taken into account by this method.
 
 =head3 read_callback
 
@@ -436,12 +451,14 @@ A callback used to read content, or modify a file handle from an C<@INC> hook.
 =head3 read_callback_options
 
 An array reference of arguments to send to the read callback whem reading or
-modifying content from a file handle.
+modifying content from a file handle.  Will contain either zero or one entries.
 
 =head1 SEE ALSO
 
 Numerous other modules attempt to do C<@INC> searches similar to this module,
 but no other module accurately represents how perl itself uses L<perlvar/@INC>.
+Most don't match perl's behavior regarding character and block devices,
+directories, or permissions.  Often, C<.pmc> files are not taken into account.
 
 Some of these modules have other use cases.  The following comments are
 primarily related to their ability to search C<@INC>.
