@@ -314,7 +314,7 @@ Module::Reader - Find and read perl modules like perl does
   my $module      = $reader->module("My::Module");
   my $filename    = $module->found_file;
   my $content     = $module->content;
-  my $file_handle = $module = $module->handle;
+  my $file_handle = $module->handle;
 
   # search options
   my $other_reader = Module::Reader->new(inc => ["/some/lib/dir", "/another/lib/dir"]);
