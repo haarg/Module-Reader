@@ -220,6 +220,7 @@ sub _open_ref {
 {
   package Module::Reader::File;
   use constant _OPEN_STRING => "$]" >= 5.008 || (require IO::String, 0);
+  use Carp 'croak';
 
   sub new {
     my ($class, %opts) = @_;
@@ -268,8 +269,11 @@ sub _open_ref {
   sub handle {
     my $self = shift;
     my $fh = $self->raw_filehandle;
-    return $fh
-      if $fh && !$self->read_callback;
+    if ($fh && !$self->read_callback && -f $fh) {
+      open my $dup, '<&', $fh
+        or croak "can't dup file handle: $!";
+      return $dup;
+    }
     my $content = $self->content;
     if (_OPEN_STRING) {
       open my $fh, '<', \$content;
