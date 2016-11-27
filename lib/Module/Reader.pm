@@ -365,6 +365,11 @@ L<perlfunc/%INC> will be used instead.
 A boolean controlling if C<.pmc> files should be found in preference to C<.pm>
 files.  If not specified, the same behavior perl was compiled with will be used.
 
+=item open
+
+A boolean controlling if the files found will be opened immediately when found.
+Defaults to true.
+
 =back
 
 =head1 METHODS
