@@ -102,7 +102,7 @@ sub _find {
   my ($self, $file, $all) = @_;
 
   if (!_searchable($file)) {
-    my $open = _open_file($file);
+    my $open = $self->_open_file($file);
     return $open
       if $open;
     croak "Can't locate $file";
@@ -155,6 +155,8 @@ sub _find {
 
 sub _open_file {
   my ($self, $full, $file, $inc) = @_;
+  $file = $full
+    if !defined $file;
   for my $try (
     ($self->{pmc} && $file =~ /\.pm\z/ ? $full.'c' : ()),
     $full,
