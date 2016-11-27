@@ -1,5 +1,6 @@
 Revision history for Module-Reader
 
+0.003_000 - 2016-11-27
   * Features
     - add new object based interface, with more controls
     - result objects include more information, including found filenames and
