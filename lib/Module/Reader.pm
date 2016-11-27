@@ -67,6 +67,8 @@ sub new {
     if exists $options{found} && $options{found} eq 1;
   $options{pmc} = _PMC_ENABLED
     if !exists $options{pmc};
+  $options{open} = 1
+    if !exists $options{open};
   bless \%options, $class;
 }
 
@@ -164,16 +166,17 @@ sub _open_file {
     my $pmc = $full ne $try;
     next
       if -e $try ? (-d _ || -b _) : $! != EACCES;
-    my $fh;
-    open $fh, '<:', $try
-      and return Module::Reader::File->new(
+
+    if (!$self->{open} ? -e _ : open my $fh, '<:', $try) {
+      return Module::Reader::File->new(
         filename        => $file,
-        raw_filehandle  => $fh,
+        ($fh ? (raw_filehandle => $fh) : ()),
         found_file      => $full,
         disk_file       => $try,
         is_pmc          => $pmc,
         (defined $inc ? (inc_entry => $inc) : ()),
       );
+    }
     croak "Can't locate $file:   $full: $!"
       unless $pmc;
   }
@@ -217,6 +220,11 @@ sub _open_ref {
   );
 }
 
+sub inc   { $_[0]->{inc} }
+sub found { $_[0]->{found} }
+sub pmc    { $_[0]->{pmc} }
+sub open  { $_[0]->{open} }
+
 {
   package Module::Reader::File;
   use constant _OPEN_STRING => "$]" >= 5.008 || (require IO::String, 0);
@@ -236,13 +244,18 @@ sub _open_ref {
 
   sub filename              { $_[0]->{filename} }
   sub module                { $_[0]->{module} }
-  sub raw_filehandle        { $_[0]->{raw_filehandle} }
   sub found_file            { $_[0]->{found_file} }
   sub disk_file             { $_[0]->{disk_file} }
   sub is_pmc                { $_[0]->{is_pmc} }
   sub inc_entry             { $_[0]->{inc_entry} }
   sub read_callback         { $_[0]->{read_callback} }
   sub read_callback_options { $_[0]->{read_callback_options} }
+  sub raw_filehandle        {
+    $_[0]->{raw_filehandle} ||= !$_[0]->{disk_file} ? undef : do {
+      open my $fh, '<:', $_[0]->{disk_file}
+        or croak "Can't locate $_[0]->{disk_file}";
+    };
+  }
 
   sub content {
     my $self = shift;
