@@ -161,7 +161,7 @@ sub _open_file {
     ($self->{pmc} && $file =~ /\.pm\z/ ? $full.'c' : ()),
     $full,
   ) {
-    my $pmc = $full eq $try;
+    my $pmc = $full ne $try;
     next
       if -e $try ? (-d _ || -b _) : $! != EACCES;
     my $fh;
@@ -175,7 +175,7 @@ sub _open_file {
         (defined $inc ? (inc_entry => $inc) : ()),
       );
     croak "Can't locate $file:   $full: $!"
-      if $pmc;
+      unless $pmc;
   }
   return;
 }
