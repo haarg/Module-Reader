@@ -75,6 +75,9 @@ sub ParentHook::INC {
   }
 }
 
+sub main::stringy_sub { return }
+sub FQ::stringy_sub { return }
+
 {
   my $uniq = 0;
   for my $hook (
@@ -85,6 +88,9 @@ sub ParentHook::INC {
     ['class with INC hook'      => bless {}, 'ParentHook'],
     ['child class of INC hook'  => bless {}, 'ChildHook'],
     ['array ref without code'   => []],
+    ['array ref with string'    => ["welp"]],
+    ['array ref with stringy main sub' => ["stringy_sub"]],
+    ['array ref with stringy fully qualified sub' => ["FQ::stringy_sub"]],
     ['array ref with hash ref'  => [{}]],
     ['array ref with code'      => [sub { return }]],
   ) {
@@ -93,6 +99,7 @@ sub ParentHook::INC {
     my @inc = ($hook->[1], sub { return unless $_[1] eq "$class.pm"; inc_module($mod_content) });
     eval {
       local @INC = @inc;
+      no warnings 'uninitialized';
       require "$class.pm";
     };
     (my $req_e = $@) =~ s/ at .*//s;

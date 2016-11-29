@@ -11,7 +11,7 @@ our @EXPORT_OK = qw(module_content module_handle);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
 use File::Spec;
-use Scalar::Util qw(blessed reftype refaddr openhandle);
+use Scalar::Util qw(reftype refaddr openhandle);
 use Carp;
 use Config ();
 use Errno qw(EACCES);
@@ -186,9 +186,17 @@ sub _open_file {
 sub _open_ref {
   my ($self, $inc, $file) = @_;
 
-  my @cb = defined blessed $inc ? $inc->INC($file)
-         : ref $inc eq 'ARRAY'  ? $inc->[0]->($inc, $file)
-                                : $inc->($inc, $file);
+  my @cb;
+  {
+    # strings in arrayrefs are taken as sub names relative to main
+    package
+      main;
+    no strict 'refs';
+    no warnings 'uninitialized';
+    @cb = defined Scalar::Util::blessed $inc ? $inc->INC($file)
+        : ref $inc eq 'ARRAY'                ? $inc->[0]->($inc, $file)
+                                             : $inc->($inc, $file);
+  }
 
   return
     unless length ref $cb[0];
