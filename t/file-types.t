@@ -21,16 +21,19 @@ my %types = (
   dir => sub {
     mkdir $_[0];
   },
-  link => sub {
+);
+
+if (eval { symlink 'target', "$dir/link-test" }) {
+  $types{link} = sub {
     my ($fh, $file) = File::Temp::tempfile('linked-file-XXXXXX', DIR => $dir, UNLINK => 0);
     print { $fh } "1;";
     close $fh;
     symlink $file, $_[0];
-  },
-  badlink => sub {
+  };
+  $types{badlink} = sub {
     symlink "nonexistant", $_[0];
-  },
-);
+  };
+}
 
 # root will bypass permissions, but double check that our chmod is working
 if ($> != 0) {
