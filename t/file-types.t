@@ -88,7 +88,7 @@ for my $type_1 (sort keys %types) {
     my $got
       = !defined $found       ? 'error'
       : ref $found->inc_entry ? 'none'
-      : $found->disk_file =~ m{^$dir/(.*)/TestModule\.pm(c?)$} ? ($1.($2?' pmc':''))
+      : $found->disk_file =~ m{^\Q$dir\E/(.*)/TestModule\.pm(c?)$} ? ($1.($2?' pmc':''))
       : 'unknown';
 
     is $got, $want, "search of $type_1, $type_2 found $want";
