@@ -213,6 +213,7 @@ sub _open_ref {
 
   if ((reftype $cb[0]||'') eq 'CODE') {
     $cb = $cb[0];
+    # only one or zero callback options will be passed
     $cb_options = @cb > 1 ? [ $cb[1] ] : undef;
   }
   elsif (!$fh) {
@@ -281,6 +282,8 @@ sub open  { $_[0]->{open} }
       local $_ = $fh ? <$fh> : '';
       $_ = ''
         if !defined;
+      # perlfunc/require says that the first parameter will be a reference the
+      # sub itself.  this is wrong.  0 will be passed.
       last if !$cb->(0, @params);
       $content .= $_;
     }
