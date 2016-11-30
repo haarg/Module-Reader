@@ -1,5 +1,11 @@
 Revision history for Module-Reader
 
+  - fix links and formatting in pod
+  - fix some edge cases with arrayref hooks
+  - fix tests on Win32
+  - fix 5.6 support
+  - fix cperl support
+
 0.003_000 - 2016-11-27
   * Features
     - add new object based interface, with more controls
