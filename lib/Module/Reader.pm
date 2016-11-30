@@ -22,7 +22,7 @@ use constant _PMC_ENABLED => !(
 use constant _VMS => $^O eq 'VMS' && !!require VMS::Filespec;
 use constant _WIN32 => $^O eq 'MSWin32';
 use constant _FAKE_FILE_FORMAT => do {
-  (my $uvx = $Config::Config{uvxformat}||'') =~ tr/"//d;
+  (my $uvx = $Config::Config{uvxformat}||'') =~ tr/"\0//d;
   $uvx ||= 'lx';
   "/loader/0x%$uvx/%s"
 };
