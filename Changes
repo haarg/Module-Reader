@@ -1,5 +1,6 @@
 Revision history for Module-Reader
 
+0.003_001 - 2016-11-30
   - fix links and formatting in pod
   - fix some edge cases with arrayref hooks
   - fix tests on Win32
