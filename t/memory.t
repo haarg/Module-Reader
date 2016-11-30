@@ -53,8 +53,12 @@ sub inc_module {
     is module_content('TestLib', { found => \%INC } ), $mod_content,
       'found => \%INC loads mod as it was required';
   }
-  is +Module::Reader->new->module('TestLib')->found_file, $TestLib::FILENAME,
-    'calculated file matches loaded filename';
+  {
+    local $TODO = "unable to accurately calculate fake filename on perl 5.6"
+      if "$]" < 5.008;
+    is +Module::Reader->new->module('TestLib')->found_file, $TestLib::FILENAME,
+      'calculated file matches loaded filename';
+  }
 }
 
 sub ParentHook::INC {
