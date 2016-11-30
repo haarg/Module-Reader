@@ -26,6 +26,7 @@ use constant _FAKE_FILE_FORMAT => do {
   $uvx ||= 'lx';
   "/loader/0x%$uvx/%s"
 };
+use constant _OPEN_LAYERS => "$]" >= 5.008 ? ':' : '';
 
 sub _mod_to_file {
   my $module = shift;
@@ -167,7 +168,7 @@ sub _open_file {
     next
       if -e $try ? (-d _ || -b _) : $! != EACCES;
 
-    if (!$self->{open} ? -e _ : open my $fh, '<:', $try) {
+    if (!$self->{open} ? -e _ : open my $fh, '<'._OPEN_LAYERS, $try) {
       return Module::Reader::File->new(
         filename        => $file,
         ($fh ? (raw_filehandle => $fh) : ()),
@@ -261,7 +262,7 @@ sub open  { $_[0]->{open} }
   sub read_callback_options { $_[0]->{read_callback_options} }
   sub raw_filehandle        {
     $_[0]->{raw_filehandle} ||= !$_[0]->{disk_file} ? undef : do {
-      open my $fh, '<:', $_[0]->{disk_file}
+      open my $fh, '<'.Module::Reader::_OPEN_LAYERS, $_[0]->{disk_file}
         or croak "Can't locate $_[0]->{disk_file}";
     };
   }
