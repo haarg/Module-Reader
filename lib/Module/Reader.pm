@@ -421,7 +421,7 @@ memory or have arbitrary filters applied.
 
 =head3 filename
 
-The filename that was seached for.
+The filename that was searched for.
 
 =head3 module
 
@@ -532,7 +532,7 @@ files that it finds.
 
 =item L<Module::Locate>
 
-Innacurately searches C<@INC> for matching files.  Attempts to handle hooks, but
+Inaccurately searches C<@INC> for matching files.  Attempts to handle hooks, but
 handles most cases wrong.
 
 =item L<Module::Mapper>
