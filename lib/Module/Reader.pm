@@ -475,7 +475,7 @@ avoided unless you are introspecting the F<< C<@INC> hooks|perlfunc/require >>.
 
 The raw file handle to the file found.  This will be either a file handle to a
 file found on disk, or something returned by an
-F<< C<@INC> hook|perlfunc/require >>.  The hook callback, if it exists, will not
+L<< C<@INC> hook|perlfunc/require >>.  The hook callback, if it exists, will not
 be taken into account by this method.
 
 =head3 read_callback
