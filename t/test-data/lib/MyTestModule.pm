@@ -1,4 +1,4 @@
-package TestLib;
+package MyTestModule;
 
 our $FILENAME = __FILE__;
 
