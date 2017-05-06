@@ -12,7 +12,7 @@ BEGIN {
 }
 
 my $mod_content = do {
-  open my $fh, '<', 't/test-data/lib/MyTestModule.pm';
+  open my $fh, (_HAS_PERLIO ? '<:' : '<'), 't/test-data/lib/MyTestModule.pm';
   local $/;
   <$fh>;
 };
