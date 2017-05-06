@@ -4,6 +4,9 @@ no warnings 'once';
 
 use Test::More 0.88;
 use Module::Reader qw(:all);
+use lib 't/lib';
+use InlineModule;
+
 BEGIN {
   *_HAS_PERLIO = "$]" >= 5.008_000 ? sub(){1} : sub(){0};
 }
@@ -14,29 +17,9 @@ my $mod_content = do {
   <$fh>;
 };
 
-sub inc_module {
-  my $code = $_[0];
-  if (_HAS_PERLIO) {
-    open my $fh, '<', \$code
-      or die "error loading module: $!";
-    return $fh;
-  }
-  else {
-    my $pos = 0;
-    my $last = length $code;
-    return (sub {
-      return 0 if $pos == $last;
-      my $next = (1 + index $code, "\n", $pos) || $last;
-      $_ .= substr $code, $pos, $next - $pos;
-      $pos = $next;
-      return 1;
-    });
-  }
-}
-
 {
   local @INC = (
-    sub { return inc_module($mod_content) if $_[1] eq 'MyTestModule.pm' },
+    InlineModule::inc_hook('MyTestModule' => $mod_content),
     @INC,
   );
   is module_content('MyTestModule'), $mod_content,
@@ -47,7 +30,7 @@ sub inc_module {
       if "$]" < 5.008;
     local @INC = @INC;
     my $content = '1;';
-    unshift @INC, sub { return unless $_[1] eq 'MyTestModule.pm'; inc_module($content) };
+    unshift @INC, InlineModule::inc_hook( MyTestModule => $content );
     is module_content('MyTestModule'), '1;',
       'loads overridden module from sub @INC hook';
     is module_content('MyTestModule', { found => \%INC } ), $mod_content,
@@ -67,7 +50,7 @@ sub ParentHook::INC {
 @ChildHook::ISA = qw(ParentHook);
 
 {
-  my $base_hook = sub { return unless $_[1] eq 'MyTestModule.pm'; inc_module($mod_content) };
+  my $base_hook = InlineModule::inc_hook( MyTestModule => $mod_content );
   for my $fake_hook (
     ['hook returning an array ref' => sub { return [] }],
     ['hook returning a hash ref' => sub { return {} }],
