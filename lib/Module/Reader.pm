@@ -115,8 +115,24 @@ sub _find {
   eval {
     if (my $found = $self->{found}) {
       if (defined( my $full = $found->{$file} )) {
-        my $open = length ref $full ? $self->_open_ref($full, $file)
-                                    : $self->_open_file($full, $file);
+        my $open;
+        if (length ref $full) {
+          $open = $self->_open_ref($full, $file);
+        }
+        else {
+          my ($fvol, $fpath, $ffn) = File::Spec->splitpath($full);
+          my ($vol, $path, $fn) = File::Spec->splitpath($file);
+          my @fpath = (File::Spec->splitdir($fpath), $ffn);
+          my @path = (File::Spec->splitdir($path), $fn);
+          1 while @fpath && @path && pop @fpath eq pop @path;
+          my $inc;
+          if (!@path) {
+            my $maybe_inc = File::Spec->canonpath(File::Spec->catpath($vol, File::Spec->catdir(@fpath), ''));
+            ($inc) = grep { File::Spec->canonpath($_) eq $maybe_inc } @{$self->{inc}};
+          }
+
+          $open = $self->_open_file($full, $file, $inc);
+        }
         push @found, $open
           if $open;
       }
