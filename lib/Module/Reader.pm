@@ -75,6 +75,8 @@ sub new {
     if !exists $options{open};
   $options{abort_on_eacces} = _ABORT_ON_EACCES
     if !exists $options{abort_on_eacces};
+  $options{check_hooks_for_nonsearchable} = 1
+    if !exists $options{check_hooks_for_nonsearchable};
   bless \%options, $class;
 }
 
@@ -109,13 +111,6 @@ sub _searchable {
 sub _find {
   my ($self, $file, $all) = @_;
 
-  if (!_searchable($file)) {
-    my $open = $self->_open_file($file);
-    return $open
-      if $open;
-    croak "Can't locate $file";
-  }
-
   my @found;
   eval {
     if (my $found = $self->{found}) {
@@ -133,9 +128,30 @@ sub _find {
     die $@
       if $@;
   }
+
+  my $searchable = _searchable($file);
+  if (!$searchable) {
+    my $open = $self->_open_file($file);
+    if ($all) {
+      push @found, $open;
+    }
+    elsif ($open) {
+      return $open;
+    }
+    else {
+      croak "Can't locate $file";
+    }
+  }
+
   my $search = $self->{inc};
   for my $inc (@$search) {
     my $open;
+    if (!$searchable) {
+      last
+        if !$self->{check_hooks_for_nonsearchable};
+      next
+        if !length ref $inc;
+    }
     eval {
       if (!length ref $inc) {
         my $full = _VMS ? VMS::Filespec::unixpath($inc) : $inc;
@@ -397,6 +413,13 @@ Defaults to true.
 A boolean controlling if an error should be thrown or if the path should be
 skipped when encountering C<EACCES> (access denied) errors.  Defaults to true
 on perl 5.18 and above, matching the behavior of L<require|perlfunc/require>.
+
+=item check_hooks_for_nonsearchable
+
+For non-searchable paths (absolute paths and those starting with C<./> or
+C<../>) attempt to check the hook items (and not the directories) in C<@INC> if
+the file cannot be found directly.  This matches the behavior of perl.  Defaults
+to true.
 
 =back
 
