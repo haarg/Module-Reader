@@ -17,6 +17,7 @@ use Config ();
 use Errno qw(EACCES);
 use constant _OPEN_LAYERS     => "$]" >= 5.008_000 ? ':' : '';
 use constant _ABORT_ON_EACCES => "$]" >= 5.017_001;
+use constant _ALLOW_PREFIX    => "$]" >= 5.008009;
 use constant _VMS             => $^O eq 'VMS' && !!require VMS::Filespec;
 use constant _WIN32           => $^O eq 'MSWin32';
 use constant _PMC_ENABLED     => !(
@@ -228,10 +229,15 @@ sub _open_ref {
   my $fake_file = sprintf _FAKE_FILE_FORMAT, refaddr($inc), $file;
 
   my $fh;
+  my $prefix;
   my $cb;
   my $cb_options;
 
-  if (reftype $cb[0] eq 'GLOB' && openhandle $cb[0]) {
+  if (_ALLOW_PREFIX && reftype $cb[0] eq 'SCALAR') {
+    $prefix = shift @cb;
+  }
+
+  if ((reftype $cb[0]||'') eq 'GLOB' && openhandle $cb[0]) {
     $fh = shift @cb;
   }
 
@@ -240,13 +246,14 @@ sub _open_ref {
     # only one or zero callback options will be passed
     $cb_options = @cb > 1 ? [ $cb[1] ] : undef;
   }
-  elsif (!$fh) {
+  elsif (!defined $fh && !defined $prefix) {
     return;
   }
   return Module::Reader::File->new(
     filename => $file,
     found_file => $fake_file,
     inc_entry => $inc,
+    (defined $prefix ? (prefix => $prefix) : ()),
     (defined $fh ? (raw_filehandle => $fh) : ()),
     (defined $cb ? (read_callback => $cb) : ()),
     (defined $cb_options ? (read_callback_options => $cb_options) : ()),
@@ -297,20 +304,22 @@ sub open  { $_[0]->{open} }
       if exists $self->{content};
     my $fh = $self->raw_filehandle;
     my $cb = $self->read_callback;
+    my $content = defined $self->{prefix} ? ${$self->{prefix}} : '';
     if ($fh && !$cb) {
       local $/;
-      return scalar <$fh>;
+      $content .= <$fh>;
     }
-    my @params = @{$self->read_callback_options||[]};
-    my $content = '';
-    while (1) {
-      local $_ = $fh ? <$fh> : '';
-      $_ = ''
-        if !defined;
-      # perlfunc/require says that the first parameter will be a reference the
-      # sub itself.  this is wrong.  0 will be passed.
-      last if !$cb->(0, @params);
-      $content .= $_;
+    if ($cb) {
+      my @params = @{$self->read_callback_options||[]};
+      while (1) {
+        local $_ = $fh ? <$fh> : '';
+        $_ = ''
+          if !defined;
+        # perlfunc/require says that the first parameter will be a reference the
+        # sub itself.  this is wrong.  0 will be passed.
+        last if !$cb->(0, @params);
+        $content .= $_;
+      }
     }
     return $self->{content} = $content;
   }
