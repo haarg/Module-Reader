@@ -16,6 +16,7 @@ use Carp qw(croak);
 use Config ();
 use Errno qw(EACCES);
 use constant _OPEN_LAYERS     => "$]" >= 5.008_000 ? ':' : '';
+use constant _ABORT_ON_EACCES => "$]" >= 5.017_001;
 use constant _VMS             => $^O eq 'VMS' && !!require VMS::Filespec;
 use constant _WIN32           => $^O eq 'MSWin32';
 use constant _PMC_ENABLED     => !(
@@ -72,6 +73,8 @@ sub new {
     if !exists $options{pmc};
   $options{open} = 1
     if !exists $options{open};
+  $options{abort_on_eacces} = _ABORT_ON_EACCES
+    if !exists $options{abort_on_eacces};
   bless \%options, $class;
 }
 
@@ -167,21 +170,23 @@ sub _open_file {
     $full,
   ) {
     my $pmc = $full ne $try;
-    next
-      if -e $try ? (-d _ || -b _) : $! != EACCES;
-
-    if (!$self->{open} ? -e _ : open my $fh, '<'._OPEN_LAYERS, $try) {
-      return Module::Reader::File->new(
-        filename        => $file,
-        ($fh ? (raw_filehandle => $fh) : ()),
-        found_file      => $full,
-        disk_file       => $try,
-        is_pmc          => $pmc,
-        (defined $inc ? (inc_entry => $inc) : ()),
-      );
+    if (-e $try) {
+      next
+        if -d _ || -b _;
+      if (open my $fh, '<'._OPEN_LAYERS, $try) {
+        return Module::Reader::File->new(
+          filename        => $file,
+          ($self->{open} ? (raw_filehandle => $fh) : ()),
+          found_file      => $full,
+          disk_file       => $try,
+          is_pmc          => $pmc,
+          (defined $inc ? (inc_entry => $inc) : ()),
+        );
+      }
     }
+
     croak "Can't locate $file:   $full: $!"
-      unless $pmc;
+      if $self->{abort_on_eacces} && $! == EACCES && !$pmc;
   }
   return;
 }
@@ -385,6 +390,12 @@ files.  If not specified, the same behavior perl was compiled with will be used.
 
 A boolean controlling if the files found will be opened immediately when found.
 Defaults to true.
+
+=item abort_on_eacces
+
+A boolean controlling if an error should be thrown or if the path should be
+skipped when encountering C<EACCES> (access denied) errors.  Defaults to true
+on perl 5.18 and above, matching the behavior of L<require|perlfunc/require>.
 
 =back
 
