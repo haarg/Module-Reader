@@ -271,6 +271,7 @@ sub open  { $_[0]->{open} }
     $_[0]->{raw_filehandle} ||= !$_[0]->{disk_file} ? undef : do {
       open my $fh, '<'.Module::Reader::_OPEN_LAYERS, $_[0]->{disk_file}
         or croak "Can't locate $_[0]->{disk_file}";
+      $fh;
     };
   }
 
