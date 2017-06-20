@@ -10,23 +10,25 @@ use Exporter (); BEGIN { *import = \&Exporter::import }
 our @EXPORT_OK = qw(module_content module_handle);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 
-use File::Spec;
+use File::Spec ();
 use Scalar::Util qw(reftype refaddr openhandle);
-use Carp;
+use Carp qw(croak);
 use Config ();
 use Errno qw(EACCES);
-use constant _PMC_ENABLED => !(
-  exists &Config::non_bincompat_options ? grep { $_ eq 'PERL_DISABLE_PMC' } Config::non_bincompat_options()
-  : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
+use constant _OPEN_LAYERS     => "$]" >= 5.008_000 ? ':' : '';
+use constant _VMS             => $^O eq 'VMS' && !!require VMS::Filespec;
+use constant _WIN32           => $^O eq 'MSWin32';
+use constant _PMC_ENABLED     => !(
+  exists &Config::non_bincompat_options
+    ? grep { $_ eq 'PERL_DISABLE_PMC' } Config::non_bincompat_options()
+    : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
 );
-use constant _VMS => $^O eq 'VMS' && !!require VMS::Filespec;
-use constant _WIN32 => $^O eq 'MSWin32';
 use constant _FAKE_FILE_FORMAT => do {
-  (my $uvx = $Config::Config{uvxformat}||'') =~ tr/"\0//d;
+  my $uvx = $Config::Config{uvxformat} || '';
+  $uvx =~ tr/"\0//d;
   $uvx ||= 'lx';
   "/loader/0x%$uvx/%s"
 };
-use constant _OPEN_LAYERS => "$]" >= 5.008 ? ':' : '';
 
 sub _mod_to_file {
   my $module = shift;
@@ -232,12 +234,12 @@ sub _open_ref {
 
 sub inc   { $_[0]->{inc} }
 sub found { $_[0]->{found} }
-sub pmc    { $_[0]->{pmc} }
+sub pmc   { $_[0]->{pmc} }
 sub open  { $_[0]->{open} }
 
 {
   package Module::Reader::File;
-  use constant _OPEN_STRING => "$]" >= 5.008 || (require IO::String, 0);
+  use constant _OPEN_STRING => "$]" >= 5.008 || !require IO::String;
   use Carp 'croak';
 
   sub new {
@@ -356,7 +358,7 @@ Returns an IO handle for the given module.
 
 Returns the content of a given module.
 
-=head1 CLASS ATTRIBUTES
+=head1 ATTRIBUTES
 
 =over 4
 
