@@ -3,7 +3,7 @@ BEGIN { require 5.006 }
 use strict;
 use warnings;
 
-our $VERSION = '0.003002';
+our $VERSION = '0.003003';
 $VERSION = eval $VERSION;
 
 use Exporter (); BEGIN { *import = \&Exporter::import }
