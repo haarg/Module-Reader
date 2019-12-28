@@ -17,7 +17,8 @@ use Config ();
 use Errno qw(EACCES);
 use constant _OPEN_LAYERS     => "$]" >= 5.008_000 ? ':' : '';
 use constant _ABORT_ON_EACCES => "$]" >= 5.017_001;
-use constant _ALLOW_PREFIX    => "$]" >= 5.008009;
+# returning a prefix scalar added in 34113e50dc
+use constant _ALLOW_PREFIX    => "$]" == 5.008_009 || "$]" >= 5.009_004;
 use constant _VMS             => $^O eq 'VMS' && !!require VMS::Filespec;
 use constant _WIN32           => $^O eq 'MSWin32';
 use constant _PMC_ENABLED     => !(
@@ -25,6 +26,8 @@ use constant _PMC_ENABLED     => !(
     ? grep { $_ eq 'PERL_DISABLE_PMC' } Config::non_bincompat_options()
     : $Config::Config{ccflags} =~ /(?:^|\s)-DPERL_DISABLE_PMC\b/
 );
+# always using pmc changed in a91233bf4c
+use constant _PMC_MUST_BE_NEWER => "$]" < 5.009_004;
 use constant _FAKE_FILE_FORMAT => do {
   my $uvx = $Config::Config{uvxformat} || '';
   $uvx =~ tr/"\0//d;
@@ -72,6 +75,8 @@ sub new {
     if exists $options{found} && $options{found} eq 1;
   $options{pmc} = _PMC_ENABLED
     if !exists $options{pmc};
+  $options{pmc_must_be_newer} = _PMC_MUST_BE_NEWER
+    if !exists $options{pmc_must_be_newer};
   $options{open} = 1
     if !exists $options{open};
   $options{abort_on_eacces} = _ABORT_ON_EACCES
@@ -190,6 +195,10 @@ sub _open_file {
     if (-e $try) {
       next
         if -d _ || -b _;
+      if ($self->{pmc_must_be_newer} && $pmc) {
+        next
+          if (stat _)[9] < (stat $full)[9]; # mtime
+      }
       if (open my $fh, '<'._OPEN_LAYERS, $try) {
         return Module::Reader::File->new(
           filename        => $file,
@@ -411,6 +420,13 @@ optionally be an L<< C<@INC> hook|perlfunc/require >>.  This option can also be
 
 A boolean controlling if C<.pmc> files should be found in preference to C<.pm>
 files.  If not specified, the same behavior perl was compiled with will be used.
+
+=item pmc_must_be_newer
+
+A boolean controlling if C<.pmc> files should be ignored if they are older than
+the corresponding C<.pm> file.  If not specified, the same behavior as the
+current perl will be used.  This is true on perl until 5.10.0, and false for
+newer versions.
 
 =item open
 
